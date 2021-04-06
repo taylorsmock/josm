@@ -1,0 +1,11 @@
+include:
+  local: ".gitlab/pipeline.yml"
+
+build:
+  stage: build
+  trigger:
+    include: .gitlab/pipeline.yml
+  parallel:
+    matrix:
+      - JAVA_VERSION: [11, 16, 17-ea]
+      #- ARCHITECTURE: [amd64] # openjdk archs include arm64v8 and windows-amd64. Mac builds would probably have to be separate.
