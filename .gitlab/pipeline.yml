@@ -1,0 +1,74 @@
+variables:
+  IVY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/ivy"
+  JAVA_VERSION: 8
+
+cache:
+  paths:
+    - .cache/
+    - tools/
+
+build-dist:
+  image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
+  stage: deploy
+  script:
+    - $ANT_HOME/bin/ant -Divy.home="$IVY_CACHE_DIR" dist-optimized-report distmac distwin javadoc taginfo
+  interruptible: true
+  artifacts:
+    public: true
+    paths: ["build/dist/"]
+
+
+build-java:
+  image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
+  stage: build
+  script:
+    - $ANT_HOME/bin/ant -Divy.home="$IVY_CACHE_DIR" clean dist
+  interruptible: true
+  artifacts:
+    paths:
+      - "build"
+
+test-java:
+  image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
+  stage: test
+  script:
+    - $ANT_HOME/bin/ant -Divy.home="$IVY_CACHE_DIR" -Dtest.headless=true test
+  interruptible: true
+  artifacts:
+    public: true
+    reports:
+      junit:
+        - "test/report/TEST-*.xml"
+
+pmd-java:
+  image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
+  stage: test
+  script:
+    - $ANT_HOME/bin/ant -Divy.home="$IVY_CACHE_DIR" pmd
+  interruptible: true
+  artifacts:
+    reports:
+      codequality:
+        - codeclimate-josm.json
+
+checkstyle-java:
+  image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
+  stage: test
+  script:
+    - $ANT_HOME/bin/ant -Divy.home="$IVY_CACHE_DIR" checkstyle
+  interruptible: true
+  artifacts:
+    public: true
+    paths:
+      - "checkstyle-josm.xml"
+
+spotbugs-java:
+  image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
+  stage: test
+  script:
+    - $ANT_HOME/bin/ant -Divy.home="$IVY_CACHE_DIR" spotbugs
+  interruptible: true
+  artifacts:
+    public: true
+    paths:
+      - "spotbugs-josm.xml"

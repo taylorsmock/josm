@@ -876,6 +876,9 @@ Build-Date: ${build.tstamp}
             <formatter type="xml" toFile="pmd-josm.xml">
                 <param name="encoding" value="UTF-8" />
             </formatter>
+            <formatter type="codeclimate" toFile="codeclimate-josm.json">
+                <param name="encoding" value="UTF-8" />
+            </formatter>
             <fileset dir="${src.dir}">
                 <include name="org/openstreetmap/josm/**/*.java"/>
                 <exclude name="org/openstreetmap/josm/gui/mappaint/mapcss/parsergen/*.java" />
