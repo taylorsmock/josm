@@ -55,6 +55,19 @@ coverage-java:
     reports:
       cobertura: "test/report/coverage.xml"
 
+navigation-java:
+  stage: deploy
+  image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
+  script:
+    - ant -Dlsif=true compile
+    - curl -fLo coursier https://git.io/coursier-cli
+    - chmod +x coursier
+    - ./coursier launch com.sourcegraph:lsif-java_2.13:0.5.1 -- index-semanticdb build/semanticdb
+  cache: {}
+  artifacts:
+    reports:
+      lsif: dump.lsif
+
 pmd-java:
   image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
   stage: test

@@ -200,6 +200,7 @@ Build-Date: ${build.tstamp}
     <target name="compile" depends="init,javacc" unless="compile.notRequired" description="Compile JOSM">
         <ivy:cachepath log="download-only" file="${tools.ivy}" pathid="errorprone.classpath" conf="errorprone"/>
         <ivy:cachepath log="download-only" file="${tools.ivy}" pathid="errorprone_javac.classpath" conf="errorprone_javac"/>
+        <ivy:cachepath log="download-only" file="${tools.ivy}" pathid="semanticdb.classpath" conf="semanticdb" if:set="lsif"/>
         <!-- JOSM -->
         <javac sourcepath="" srcdir="${src.dir}" fork="yes"
             excludes="com/**,org/apache/commons/**,**/package-info.java"
@@ -216,7 +217,7 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED" if:set="isJava16" unless:set="noErrorProne"/>
             <compilerarg line="-XDcompilePolicy=simple"/>
             <compilerarg value="-processorpath"/>
-            <compilerarg pathref="errorprone.classpath"/>
+            <compilerarg value="${toString:errorprone.classpath}:${toString:semanticdb.classpath}"/>
             <compilerarg value="-Xlint:cast"/>
             <compilerarg value="-Xlint:deprecation"/>
             <compilerarg value="-Xlint:dep-ann"/>
@@ -232,6 +233,7 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-XDignore.symbol.file"/>
             <compilerarg value="-Xplugin:ErrorProne -XepExcludedPaths:.*/parsergen/.* -Xep:ReferenceEquality:OFF -Xep:FutureReturnValueIgnored:OFF -Xep:JdkObsolete:OFF -Xep:EqualsGetClass:OFF -Xep:UndefinedEquals:OFF -Xep:BadImport:OFF -Xep:AnnotateFormatMethod:OFF -Xep:JavaUtilDate:OFF -Xep:DoNotCallSuggester:OFF -Xep:BanSerializableRead:OFF -Xep:RestrictedApiChecker:OFF -Xep:InlineMeSuggester:OFF" unless:set="noErrorProne"/>
             <compilerarg line="-Xmaxwarns 1000"/>
+            <compilerarg value="-Xplugin:semanticdb -sourceroot:${src.dir} -targetroot:${build.dir}/semanticdb" if:set="lsif" />
             <classpath>
                 <path refid="runtime.path"/>
             </classpath>
