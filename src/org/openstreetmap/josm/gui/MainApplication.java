@@ -45,6 +45,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
@@ -216,6 +217,42 @@ public class MainApplication {
     public static final ExecutorService worker = new ProgressMonitorExecutor("main-worker-%d", Thread.NORM_PRIORITY);
 
     /**
+     * This class literally exists to ensure that consumers cannot shut the pool down.
+     * @since xxx
+     */
+    private static class ForkJoinPoolAlways extends ForkJoinPool {
+        ForkJoinPoolAlways() {
+            // Leave a processor for the UI.
+            super(Math.max(1, Runtime.getRuntime().availableProcessors() - 1), ForkJoinPool.defaultForkJoinWorkerThreadFactory,
+                    new BugReportExceptionHandler(), false);
+        }
+
+        @Override
+        public void shutdown() {
+            // Do nothing. This is functionally the same as for the commonPool.
+        }
+
+        @Override
+        public List<Runnable> shutdownNow() {
+            // Do nothing. This is functionally the same as for the commonPool.
+            return Collections.emptyList();
+        }
+    }
+
+    // If there is a security manager, ForkJoinPool.commonPool uses an "InnocuousForkJoinWorkerThreadFactory", which can kill stuff calling
+    // repaint. Otherwise, the common pool is better from (most) perspectives.
+    private static final ForkJoinPool forkJoinPool = System.getSecurityManager() != null ? new ForkJoinPoolAlways() : ForkJoinPool.commonPool();
+
+    /**
+     * Get a generic {@link ForkJoinPool}.
+     * @return A ForkJoinPool to use. Calling {@link ForkJoinPool#shutdown()} or {@link ForkJoinPool#shutdownNow()} has no effect.
+     * @since xxx
+     */
+    public static final ForkJoinPool getForkJoinPool() {
+        return forkJoinPool;
+    }
+
+    /**
      * Provides access to the layers displayed in the main view.
      */
     private static final MainLayerManager layerManager = new MainLayerManager();
@@ -286,8 +323,8 @@ public class MainApplication {
      * Listener that sets the enabled state of undo/redo menu entries.
      */
     final CommandQueueListener redoUndoListener = (queueSize, redoSize) -> {
-            menu.undo.setEnabled(queueSize > 0);
-            menu.redo.setEnabled(redoSize > 0);
+            GuiHelper.runInEDT(() -> menu.undo.setEnabled(queueSize > 0));
+            GuiHelper.runInEDT(() -> menu.redo.setEnabled(redoSize > 0));
         };
 
     /**

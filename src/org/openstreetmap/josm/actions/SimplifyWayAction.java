@@ -8,6 +8,8 @@ import static org.openstreetmap.josm.tools.I18n.trn;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -17,7 +19,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
@@ -46,10 +52,12 @@ import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
+import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.spi.preferences.IPreferences;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.StreamUtils;
 
@@ -58,6 +66,7 @@ import org.openstreetmap.josm.tools.StreamUtils;
  * @since 2575
  */
 public class SimplifyWayAction extends JosmAction {
+    private static final int MAX_WAYS_NO_ASK = 10;
 
     /**
      * Constructs a new {@code SimplifyWayAction}.
@@ -120,14 +129,56 @@ public class SimplifyWayAction extends JosmAction {
     }
 
     /**
-     * Asks the user for max-err value used to simplify ways, if not remembered before
+     * Asks the user for max-err value used to simplify ways, if not remembered before. This is not asynchronous.
      * @param ways the ways that are being simplified (to show estimated number of nodes to be removed)
      * @param text the text being shown
      * @param auto whether it's called automatically (conversion) or by the user
      * @return the max-err value or -1 if canceled
+     * @see #askSimplifyWays(Collection, String, boolean, SimplifyWayActionListener...)
      * @since 16566
      */
     public static double askSimplifyWays(List<Way> ways, String text, boolean auto) {
+        AtomicReference<Double> returnVar = new AtomicReference<>((double) -1);
+        AtomicBoolean hasRun = new AtomicBoolean();
+        askSimplifyWays(ways, text, auto, (result, command) -> {
+            synchronized (returnVar) {
+                returnVar.set(result);
+                returnVar.notifyAll();
+                hasRun.set(true);
+            }
+        });
+        if (!SwingUtilities.isEventDispatchThread()) {
+            synchronized (returnVar) {
+                while (!hasRun.get()) {
+                    try {
+                        // Wait 2 seconds
+                        returnVar.wait(2000);
+                    } catch (InterruptedException e) {
+                        Logging.error(e);
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+        }
+        return returnVar.get();
+    }
+
+    /**
+     * Asks the user for max-err value used to simplify ways, if not remembered before
+     * @param waysCollection the ways that are being simplified (to show estimated number of nodes to be removed)
+     * @param text the text being shown
+     * @param auto whether it's called automatically (conversion) or by the user
+     * @param listeners Listeners to call when the max error is calculated
+     * @since xxx
+     */
+    public static void askSimplifyWays(Collection<Way> waysCollection, String text, boolean auto, SimplifyWayActionListener... listeners) {
+        final Collection<SimplifyWayActionListener> realListeners = Stream.of(listeners).filter(Objects::nonNull).collect(Collectors.toList());
+        final List<Way> ways;
+        if (waysCollection instanceof List) {
+            ways = (List<Way>) waysCollection;
+        } else {
+            ways = new ArrayList<>(waysCollection);
+        }
         IPreferences s = Config.getPref();
         String key = "simplify-way." + (auto ? "auto." : "");
         String keyRemember = key + "remember";
@@ -135,9 +186,11 @@ public class SimplifyWayAction extends JosmAction {
 
         String r = s.get(keyRemember, "ask");
         if (auto && "no".equals(r)) {
-            return -1;
+            realListeners.forEach(listener -> listener.maxErrorListener(-1, null));
+            return;
         } else if ("yes".equals(r)) {
-            return s.getDouble(keyError, 3.0);
+            realListeners.forEach(listener -> listener.maxErrorListener(s.getDouble(keyError, 3.0), null));
+            return;
         }
 
         JPanel p = new JPanel(new GridBagLayout());
@@ -178,53 +231,65 @@ public class SimplifyWayAction extends JosmAction {
         } else {
             ed.setButtonIcons("ok", "cancel");
         }
-
-        int ret = ed.showDialog().getValue();
-        double val = (double) n.getValue();
-        if (l.lastCommand != null && l.lastCommand.equals(UndoRedoHandler.getInstance().getLastCommand())) {
-            UndoRedoHandler.getInstance().undo();
-            l.lastCommand = null;
-        }
-        if (ret == 1) {
-            s.putDouble(keyError, val);
-            if (c.isSelected()) {
-                s.put(keyRemember, "yes");
+        ed.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                final double result;
+                final int ret = ed.getValue();
+                double val = (double) n.getValue();
+                final Command command = l.lastCommand;
+                if (l.lastCommand != null && l.lastCommand.equals(UndoRedoHandler.getInstance().getLastCommand())) {
+                    UndoRedoHandler.getInstance().undo();
+                    l.lastCommand = null;
+                }
+                if (ret == 1) {
+                    s.putDouble(keyError, val);
+                    if (c.isSelected()) {
+                        s.put(keyRemember, "yes");
+                    }
+                    result = val;
+                } else {
+                    if (auto && c.isSelected()) { //do not remember cancel for manual simplify, otherwise nothing would happen
+                        s.put(keyRemember, "no");
+                    }
+                    result = -1;
+                }
+                realListeners.forEach(listener -> listener.maxErrorListener(result, command));
             }
-            return val;
-        } else {
-            if (auto && c.isSelected()) { //do not remember cancel for manual simplify, otherwise nothing would happen
-                s.put(keyRemember, "no");
-            }
-            return -1;
-        }
+        });
+        GuiHelper.runInEDT(ed::showDialog);
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
         DataSet ds = getLayerManager().getEditDataSet();
-        ds.update(() -> {
-            List<Way> ways = ds.getSelectedWays().stream()
-                    .filter(p -> !p.isIncomplete())
-                    .collect(Collectors.toList());
-            if (ways.isEmpty()) {
-                alertSelectAtLeastOneWay();
-                return;
-            } else if (!confirmWayWithNodesOutsideBoundingBox(ways) || (ways.size() > 10 && !confirmSimplifyManyWays(ways.size()))) {
-                return;
+        List<Way> ways = ds.getSelectedWays().stream()
+                .filter(p -> !p.isIncomplete())
+                .collect(Collectors.toList());
+        if (ways.isEmpty()) {
+            alertSelectAtLeastOneWay();
+            return;
+        } else if (!confirmWayWithNodesOutsideBoundingBox(ways) || (ways.size() > MAX_WAYS_NO_ASK && !confirmSimplifyManyWays(ways.size()))) {
+            return;
+        }
+
+        String lengthstr = SystemOfMeasurement.getSystemOfMeasurement().getDistText(
+                ways.stream().mapToDouble(Way::getLength).sum());
+
+        askSimplifyWays(ways, trn(
+            "You are about to simplify {0} way with a total length of {1}.",
+            "You are about to simplify {0} ways with a total length of {1}.",
+            ways.size(), ways.size(), lengthstr), false, (maxErr, simplifyCommand) -> {
+                if (maxErr > 0) {
+                    if (simplifyCommand == null) {
+                        simplifyWays(ways, maxErr);
+                    } else {
+                        GuiHelper.runInEDT(() -> UndoRedoHandler.getInstance().add(simplifyCommand));
+                    }
+                }
             }
+        );
 
-            String lengthstr = SystemOfMeasurement.getSystemOfMeasurement().getDistText(
-                    ways.stream().mapToDouble(Way::getLength).sum());
-
-            double err = askSimplifyWays(ways, trn(
-                    "You are about to simplify {0} way with a total length of {1}.",
-                    "You are about to simplify {0} ways with a total length of {1}.",
-                    ways.size(), ways.size(), lengthstr), false);
-
-            if (err > 0) {
-                simplifyWays(ways, err);
-            }
-        });
     }
 
     /**
@@ -308,7 +373,8 @@ public class SimplifyWayAction extends JosmAction {
      * @since 16566 (private)
      */
     private static SequenceCommand buildSimplifyWaysCommand(List<Way> ways, double threshold) {
-        Collection<Command> allCommands = ways.stream()
+        // Use `parallelStream` since this can significantly decrease the amount of time taken for large numbers of ways
+        Collection<Command> allCommands = ways.parallelStream()
                 .map(way -> createSimplifyCommand(way, threshold))
                 .filter(Objects::nonNull)
                 .collect(StreamUtils.toUnmodifiableList());
@@ -472,6 +538,7 @@ public class SimplifyWayAction extends JosmAction {
         private final JLabel nodesToRemove;
         private final SpinnerNumberModel errorModel;
         private final List<Way> ways;
+        private ForkJoinTask<?> futureNodesToRemove;
 
         SimplifyChangeListener(JLabel nodesToRemove, SpinnerNumberModel errorModel, List<Way> ways) {
             this.nodesToRemove = nodesToRemove;
@@ -481,18 +548,80 @@ public class SimplifyWayAction extends JosmAction {
 
         @Override
         public void stateChanged(ChangeEvent e) {
-            if (Objects.equals(UndoRedoHandler.getInstance().getLastCommand(), lastCommand)) {
-                UndoRedoHandler.getInstance().undo();
-            }
-            double threshold = errorModel.getNumber().doubleValue();
-            int removeNodes = simplifyWaysCountNodesRemoved(ways, threshold);
-            nodesToRemove.setText(trn(
-                    "(about {0} node to remove)",
-                    "(about {0} nodes to remove)", removeNodes, removeNodes));
-            lastCommand = SimplifyWayAction.buildSimplifyWaysCommand(ways, threshold);
-            if (lastCommand != null) {
-                UndoRedoHandler.getInstance().add(lastCommand);
-            }
+            MainApplication.worker.execute(() -> {
+                synchronized (errorModel) {
+                    double threshold = errorModel.getNumber().doubleValue();
+                    if (futureNodesToRemove != null) {
+                        futureNodesToRemove.cancel(false);
+                    }
+                    futureNodesToRemove = MainApplication.getForkJoinPool().submit(new ForkJoinTask<Command>() {
+                        private Command result;
+
+                        @Override
+                        public Command getRawResult() {
+                            return result;
+                        }
+
+                        @Override
+                        protected void setRawResult(Command value) {
+                            this.result = value;
+                        }
+
+                        @Override
+                        protected boolean exec() {
+                            synchronized (SimplifyChangeListener.this) {
+                                if (!this.isCancelled()) {
+                                    GuiHelper.runInEDT(() -> nodesToRemove.setText(tr("calculating...")));
+                                    result = updateNodesToRemove(ways, threshold);
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
+                    });
+                }
+            });
         }
+
+        private Command updateNodesToRemove(List<Way> ways, double threshold) {
+            // This must come first in order for everything else to be accurate
+            if (lastCommand != null && lastCommand.equals(UndoRedoHandler.getInstance().getLastCommand())) {
+                // We need to wait to avoid cases where we cannot undo due threading issues.
+                GuiHelper.runInEDTAndWait(() -> UndoRedoHandler.getInstance().undo());
+            }
+            final Command command = buildSimplifyWaysCommand(ways, threshold);
+            // This is the same code from simplifyWaysCountNodesRemoved, but is duplicated for performance reasons
+            // (this avoids running the code to calculate the command twice).
+            int removeNodes = command == null ? 0 : (int) command.getParticipatingPrimitives().stream()
+                    .filter(Node.class::isInstance)
+                    .count();
+            int totalNodes = ways.parallelStream().mapToInt(Way::getNodesCount).sum();
+            int percent = (int) Math.round(100 * removeNodes / (double) totalNodes);
+            GuiHelper.runInEDTAndWait(() ->
+                    nodesToRemove.setText(trn(
+                            "(about {0} node to remove ({1}%))",
+                            "(about {0} nodes to remove ({1}%))", removeNodes, removeNodes, percent))
+            );
+            lastCommand = command;
+            if (lastCommand != null && ways.size() < MAX_WAYS_NO_ASK) {
+                GuiHelper.runInEDTAndWait(() -> UndoRedoHandler.getInstance().add(lastCommand));
+            }
+            return lastCommand;
+        }
+    }
+
+
+    /**
+     * A listener that is called when the {@link #askSimplifyWays} method is called.
+     * @since xxx
+     */
+    @FunctionalInterface
+    public interface SimplifyWayActionListener {
+        /**
+         * Called when the max error is set
+         * @param maxError The max error
+         * @param simplify The command that was used to generate stats for the user with the maxError. May be null.
+         */
+        void maxErrorListener(double maxError, Command simplify);
     }
 }
