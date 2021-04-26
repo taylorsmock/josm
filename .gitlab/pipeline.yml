@@ -15,7 +15,7 @@ build-dist:
   interruptible: true
   artifacts:
     public: true
-    paths: ["build/dist/"]
+    paths: ["dist"]
 
 
 build-java:
