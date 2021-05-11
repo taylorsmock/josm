@@ -3,6 +3,7 @@ variables:
   JAVA_VERSION: 8
 
 cache:
+  key: ${JAVA_VERSION}-${CI_COMMIT_REF_SLUG}
   paths:
     - .cache/
     - tools/
