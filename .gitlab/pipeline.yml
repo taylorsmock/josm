@@ -28,6 +28,7 @@ build-java:
   artifacts:
     paths:
       - "build"
+      - "dist"
 
 test-java:
   image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
@@ -101,3 +102,22 @@ spotbugs-java:
     public: true
     paths:
       - "spotbugs-josm.xml"
+
+binary-compatibility:
+  image: tsmock77/japi-compliance-checker:latest
+  stage: test
+  script:
+    - apk add curl
+    - LATEST=$(curl https://josm.openstreetmap.de/latest)
+    - mkdir --parent .cache
+    - curl -z .cache/josm-latest.jar --output .cache/josm-latest.jar https://josm.openstreetmap.de/josm-latest.jar
+    - japi-compliance-checker --lib=JOSM .cache/josm-latest.jar --v1=${LATEST} dist/josm-custom.jar --v2=${CI_COMMIT_SHA}
+  interruptible: true
+  needs: ["build-java"]
+  artifacts:
+    public: true
+    paths:
+      - "compat_reports"
+  allow_failure:
+    exit_codes:
+      - 1
