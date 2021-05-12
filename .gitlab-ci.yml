@@ -9,3 +9,27 @@ build:
     matrix:
       - JAVA_VERSION: [11, 16, 17-ea]
       #- ARCHITECTURE: [amd64] # openjdk archs include arm64v8 and windows-amd64. Mac builds would probably have to be separate.
+
+plugin-binary-compatibility-generate-ci:
+  image: ubuntu:latest
+  stage: build
+  script:
+    - apt-get update && apt-get install -y curl
+    - curl -O https://josm.openstreetmap.de/plugin
+    - JOBS=(`cat plugin | grep -E "^.*.jar;" | awk -F';' '{print $2}'`)
+    - function join_by { local d=${1-} f=${2-}; if shift 2; then printf %s "$f" "${@/#/$d}"; fi; }
+    - JOBS="$(join_by \',\' ${JOBS[@]:0:${MAX_CHILD_JOBS}})"
+    - sed "s;\$PLUGINS;'$JOBS';g" .gitlab/plugin-checks.yaml > plugin-binary-compatibility-config.yml
+  artifacts:
+    paths:
+      - plugin-binary-compatibility-config.yml
+  variables:
+    MAX_CHILD_JOBS: 50 # See https://docs.gitlab.com/ee/ci/yaml/README.html#requirements-and-limitations -- max on GitLab.com is 50
+
+plugin-binary-compatibility:
+  stage: test
+  needs: ["plugin-binary-compatibility-generate-ci"]
+  trigger:
+    include:
+      - artifact: plugin-binary-compatibility-config.yml
+        job: plugin-binary-compatibility-generate-ci
