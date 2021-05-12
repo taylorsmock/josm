@@ -116,6 +116,7 @@ binary-compatibility:
   needs: ["build-java"]
   artifacts:
     public: true
+    when: on_failure
     paths:
       - "compat_reports"
   allow_failure:
