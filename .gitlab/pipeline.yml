@@ -34,7 +34,7 @@ test-java:
   image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
   stage: test
   script:
-    - $ANT_HOME/bin/ant -Divy.home="$IVY_CACHE_DIR" -Dtest.headless=true test
+    - $ANT_HOME/bin/ant -Divy.home="$IVY_CACHE_DIR" -Dtest.headless=true test 1> /dev/null
   interruptible: true
   artifacts:
     public: true
