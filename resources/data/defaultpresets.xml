@@ -5613,7 +5613,7 @@
             <key key="man_made" value="embankment" />
         </item> <!-- Embankment -->
         <separator/>
-        <item name="Utility Pole" icon="presets/power/pole.svg" type="node" preset_name_label="true">
+        <item name="Utility Pole" icon="presets/tower/pole.svg" type="node" preset_name_label="true">
             <link wiki="Tag:man_made=utility_pole" />
             <space />
             <key key="man_made" value="utility_pole" />
