@@ -16,10 +16,20 @@ plugin-binary-compatibility-generate-ci:
   script:
     - apt-get update && apt-get install -y curl
     - curl -O https://josm.openstreetmap.de/plugin
-    - JOBS=(`cat plugin | grep -E "^.*.jar;" | awk -F';' '{print $2}'`)
-    - function join_by { local d=${1-} f=${2-}; if shift 2; then printf %s "$f" "${@/#/$d}"; fi; }
-    - JOBS="$(join_by \',\' ${JOBS[@]:0:${MAX_CHILD_JOBS}})"
-    - sed "s;\$PLUGINS;'$JOBS';g" .gitlab/plugin-checks.yaml > plugin-binary-compatibility-config.yml
+    - |
+      function join_by { local d=${1-} f=${2-}; if shift 2; then printf %s "$f" "${@/#/$d}"; fi; }
+      bunch=0
+      ORIG_JOBS=(`cat plugin | grep -E "^.*.jar;" | awk -F';' '{print $2}'`)
+      end_point=$(($bunch + ${MAX_CHILD_JOBS}))
+      while : ; do
+        T_JOBS=(${ORIG_JOBS[@]:${bunch}:${MAX_CHILD_JOBS}})
+        JOBS="$(join_by \',\' ${T_JOBS[@]})"
+        sed "s;\$PLUGINS;'$JOBS';g" .gitlab/plugin-checks.yaml | sed "s;\$bunch;$bunch;g" >> plugin-binary-compatibility-config.yml
+        bunch=$end_point
+        end_point=$(($bunch + ${MAX_CHILD_JOBS}))
+        [[ $((${#ORIG_JOBS[@]} - $bunch)) -gt 0 ]] || break
+      done
+
   artifacts:
     paths:
       - plugin-binary-compatibility-config.yml
