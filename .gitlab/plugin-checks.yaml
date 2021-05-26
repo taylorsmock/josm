@@ -1,4 +1,4 @@
-plugin_compatibility_report:
+plugin_compatibility_report_$bunch:
   image: tsmock77/japi-compliance-checker:latest
   stage: test
   script:
@@ -7,9 +7,9 @@ plugin_compatibility_report:
     - TESTED=$(curl https://josm.openstreetmap.de/tested)
     - mkdir --parent .cache
     - PLUGIN_NAME="${PLUGIN##*/}"
-    - curl -z .cache/josm-latest.jar --output .cache/josm-latest.jar https://josm.openstreetmap.de/josm-latest.jar
-    - curl -z .cache/josm-tested.jar --output .cache/josm-tested.jar https://josm.openstreetmap.de/josm-tested.jar
-    - curl -z .cache/$PLUGIN_NAME --output .cache/$PLUGIN_NAME $PLUGIN
+    - curl -Lz .cache/josm-latest.jar --output .cache/josm-latest.jar https://josm.openstreetmap.de/josm-latest.jar
+    - curl -Lz .cache/josm-tested.jar --output .cache/josm-tested.jar https://josm.openstreetmap.de/josm-tested.jar
+    - curl -Lz .cache/$PLUGIN_NAME --output .cache/$PLUGIN_NAME $PLUGIN
     - japi-compliance-checker --lib=JOSM .cache/josm-tested.jar --v1=${TESTED} .cache/josm-latest.jar --v2=${LATEST} -client .cache/$PLUGIN_NAME
   interruptible: true
   artifacts:
