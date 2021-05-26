@@ -1,5 +1,5 @@
 include:
-  local: ".gitlab/pipeline.yml"
+  - local: ".gitlab/pipeline.yml"
 
 build:
   stage: build
@@ -35,6 +35,10 @@ plugin-binary-compatibility-generate-ci:
       - plugin-binary-compatibility-config.yml
   variables:
     MAX_CHILD_JOBS: 50 # See https://docs.gitlab.com/ee/ci/yaml/README.html#requirements-and-limitations -- max on GitLab.com is 50
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+      when: manual
 
 plugin-binary-compatibility:
   stage: test
@@ -43,3 +47,7 @@ plugin-binary-compatibility:
     include:
       - artifact: plugin-binary-compatibility-config.yml
         job: plugin-binary-compatibility-generate-ci
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+      when: manual
