@@ -43,6 +43,7 @@ test-java:
     reports:
       junit:
         - "test/report/TEST-*.xml"
+    when: always
 
 coverage-java:
   stage: deploy
