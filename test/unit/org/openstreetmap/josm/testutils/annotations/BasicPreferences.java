@@ -48,6 +48,9 @@ public @interface BasicPreferences {
         @Override
         public void afterAll(ExtensionContext context) throws Exception {
             AnnotationUtils.resetStaticClass(Config.class);
+
+            // Ensure that config tests are consistent
+            resetConfigVariables(null);
         }
 
         @Override
