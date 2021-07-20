@@ -9,10 +9,12 @@ import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.testutils.annotations.BasicPreferences;
 
 /**
  * Unit tests for class {@link DownloadOsmTask}.
  */
+@BasicPreferences
 public class DownloadOsmTaskTest extends AbstractDownloadTaskTestParent {
 
     /**

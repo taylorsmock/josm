@@ -35,6 +35,7 @@ import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.io.IllegalDataException;
 import org.openstreetmap.josm.io.OsmReader;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
+import org.openstreetmap.josm.testutils.annotations.BasicPreferences;
 import org.openstreetmap.josm.tools.MultiMap;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -43,6 +44,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 /**
  * Unit tests of {@link JoinAreasAction} class.
  */
+@BasicPreferences
 class JoinAreasActionTest {
 
     /**
@@ -50,7 +52,7 @@ class JoinAreasActionTest {
      */
     @RegisterExtension
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().main().projection().preferences();
+    public JOSMTestRules test = new JOSMTestRules().main().projection();
 
     /**
      * Non-regression test for bug #9599.

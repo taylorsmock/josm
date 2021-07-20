@@ -10,10 +10,12 @@ import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.openstreetmap.josm.testutils.annotations.BasicPreferences;
 
 /**
  * Unit tests for class {@link SelectAllAction}.
  */
+@BasicPreferences
 final class SelectAllActionTest {
 
     /**
@@ -21,7 +23,7 @@ final class SelectAllActionTest {
      */
     @RegisterExtension
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules rules = new JOSMTestRules().preferences().projection().main();
+    public JOSMTestRules rules = new JOSMTestRules().projection().main();
 
     /**
      * Unit test of {@link SelectAllAction#actionPerformed} method.

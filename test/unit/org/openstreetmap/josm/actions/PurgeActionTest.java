@@ -20,10 +20,12 @@ import org.openstreetmap.josm.io.OsmReader;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.openstreetmap.josm.testutils.annotations.BasicPreferences;
 
 /**
  * Unit tests for class {@link PurgeAction}.
  */
+@BasicPreferences
 class PurgeActionTest {
 
     /**
@@ -31,7 +33,7 @@ class PurgeActionTest {
      */
     @RegisterExtension
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().main();
+    public JOSMTestRules test = new JOSMTestRules().main().projection();
 
     /**
      * Non-regression test for ticket #12038.
