@@ -2,11 +2,11 @@
 package org.openstreetmap.josm.gui.dialogs;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Color;
@@ -61,7 +61,7 @@ public class MinimapDialogTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules josmTestRules = new JOSMTestRules().main().projection().fakeImagery();
+    public JOSMTestRules josmTestRules = new JOSMTestRules().main().preferences().projection().fakeImagery();
 
     /**
      * Unit test of {@link MinimapDialog} class.
@@ -101,12 +101,12 @@ public class MinimapDialogTest {
                 boolean isSelected = ((JMenuItem) c).isSelected();
                 assertEquals(equalText, isSelected);
                 if (equalText) {
-                    assertFalse("Second selected source found", found);
+                    assertFalse(found, "Second selected source found");
                     found = true;
                 }
             }
         }
-        assertTrue("Selected source not found in menu", found);
+        assertTrue(found, "Selected source not found in menu");
     }
 
     protected void clickSourceMenuItemByLabel(final String label) {
@@ -545,8 +545,8 @@ public class MinimapDialogTest {
         // (within a tolerance for numerical error) the number of pixels on the left of the viewport marker
         // should equal the number on the right
         assertTrue(
-            "Viewport marker not horizontally centered",
-            Math.abs(rowMatcher.group(1).length() - rowMatcher.group(3).length()) < 4
+            Math.abs(rowMatcher.group(1).length() - rowMatcher.group(3).length()) < 4,
+            "Viewport marker not horizontally centered"
         );
 
         Matcher colMatcher = ImagePatternMatching.columnMatch(
@@ -560,14 +560,14 @@ public class MinimapDialogTest {
         // (within a tolerance for numerical error) the number of pixels on the top of the viewport marker
         // should equal the number on the bottom
         assertTrue(
-            "Viewport marker not vertically centered",
-            Math.abs(colMatcher.group(1).length() - colMatcher.group(3).length()) < 4
+            Math.abs(colMatcher.group(1).length() - colMatcher.group(3).length()) < 4,
+            "Viewport marker not vertically centered"
         );
 
         // (within a tolerance for numerical error) the viewport marker should be square
         assertTrue(
-            "Viewport marker not square",
-            Math.abs(colMatcher.group(2).length() - rowMatcher.group(2).length()) < 4
+            Math.abs(colMatcher.group(2).length() - rowMatcher.group(2).length()) < 4,
+            "Viewport marker not square"
         );
 
         // now change the mapView size
@@ -590,8 +590,8 @@ public class MinimapDialogTest {
             true
         );
         assertTrue(
-            "Viewport marker not horizontally centered",
-            Math.abs(rowMatcher.group(1).length() - rowMatcher.group(3).length()) < 4
+            Math.abs(rowMatcher.group(1).length() - rowMatcher.group(3).length()) < 4,
+            "Viewport marker not horizontally centered"
         );
 
         colMatcher = ImagePatternMatching.columnMatch(
@@ -602,8 +602,8 @@ public class MinimapDialogTest {
             true
         );
         assertTrue(
-            "Viewport marker not vertically centered",
-            Math.abs(colMatcher.group(1).length() - colMatcher.group(3).length()) < 4
+            Math.abs(colMatcher.group(1).length() - colMatcher.group(3).length()) < 4,
+            "Viewport marker not vertically centered"
         );
 
         try {
@@ -613,8 +613,8 @@ public class MinimapDialogTest {
         }
 
         assertTrue(
-            "Viewport marker not 2:1 aspect ratio",
-            Math.abs(colMatcher.group(2).length() - (rowMatcher.group(2).length()*2.0)) < 5
+            Math.abs(colMatcher.group(2).length() - (rowMatcher.group(2).length()*2.0)) < 5,
+            "Viewport marker not 2:1 aspect ratio"
         );
     }
 
@@ -623,11 +623,11 @@ public class MinimapDialogTest {
         boolean afterSeparator = false;
         for (Component c: menu.getComponents()) {
             if (JPopupMenu.Separator.class.isInstance(c)) {
-                assertFalse("More than one separator before target item", afterSeparator);
+                assertFalse(afterSeparator, "More than one separator before target item");
                 afterSeparator = true;
             } else if (((JMenuItem) c).getText().equals(tr("Show downloaded area"))) {
-                assertTrue("Separator not found before target item", afterSeparator);
-                assertTrue("Target item doesn't appear to be a JCheckBoxMenuItem", JCheckBoxMenuItem.class.isInstance(c));
+                assertTrue(afterSeparator, "Separator not found before target item");
+                assertTrue(JCheckBoxMenuItem.class.isInstance(c), "Target item doesn't appear to be a JCheckBoxMenuItem");
                 return (JCheckBoxMenuItem) c;
             }
         }
