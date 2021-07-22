@@ -34,7 +34,12 @@ test-java:
   image: registry.gitlab.com/smocktaylor/josm/openjdk/ant:$JAVA_VERSION
   stage: test
   script:
-    - $ANT_HOME/bin/ant -Divy.home="$IVY_CACHE_DIR" -Dtest.headless=true -Dtest-it.notRequired=true -Dosm.username="$OSM_USERNAME" -Dosm.password="$OSM_PASSWORD" test test-html 1> /dev/null
+    - ANT="${ANT_HOME}/bin/ant -DnoJavaFX=true -Dtest-it.notRequired=true test-unit-hardfail"
+    - |
+      if [ ! -z "${OSM_USERNAME}" ]; then
+        ANT="${ANT} -Dosm.username=\"$OSM_USERNAME\" -Dosm.password=\"$OSM_PASSWORD\""
+      fi
+    - $ANT -Dtest.headless=true
   interruptible: true
   artifacts:
     public: true
